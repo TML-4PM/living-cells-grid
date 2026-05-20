@@ -1,0 +1,12 @@
+{
+  "name": "living-cells-grid",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "vercel dev",
+    "build": "echo static app - no build step"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
