@@ -5,6 +5,25 @@
     {
       "src": "index.html",
       "use": "@vercel/static"
+    },
+    {
+      "src": "api/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-T4H-System",
+          "value": "living-cells-grid"
+        },
+        {
+          "key": "X-T4H-Classification",
+          "value": "PARTIAL"
+        }
+      ]
     }
   ]
 }
