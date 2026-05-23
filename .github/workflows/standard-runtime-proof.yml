@@ -1,0 +1,34 @@
+name: Standard Runtime Proof
+
+# Universal runtime-proof workflow. Calls DB heartbeat RPC and verifies audit chain.
+# Gracefully exits 0 if secrets are not yet installed for this repo.
+# Installed by gh_put_file mass-rollout 2026-05-23.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Heartbeat + verify
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+        run: |
+          set -eo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE:-}" ]; then
+            echo "::notice::Secrets not yet installed. Skipping (expected for new rollouts)."
+            exit 0
+          fi
+          HB=$(curl -sS -L -X POST -H "apikey: $SUPABASE_SERVICE_ROLE" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" -H "Content-Type: application/json" -d '{}' "$SUPABASE_URL/rest/v1/rpc/symbio_verifier_heartbeat")
+          echo "heartbeat: $HB"
+          SINCE=$(date -u -d '5 minutes ago' '+%Y-%m-%dT%H:%M:%SZ')
+          STARTED=$(curl -sS -L -H "apikey: $SUPABASE_SERVICE_ROLE" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" "$SUPABASE_URL/rest/v1/symbio_audit_log?event_type=eq.work_started&actor=eq.symbio-verifier-heartbeat&created_at=gte.$SINCE&order=created_at.desc&limit=1")
+          COMPLETED=$(curl -sS -L -H "apikey: $SUPABASE_SERVICE_ROLE" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" "$SUPABASE_URL/rest/v1/symbio_audit_log?event_type=eq.work_completed&actor=eq.symbio-verifier-heartbeat&created_at=gte.$SINCE&order=created_at.desc&limit=1")
+          echo "started:   $STARTED"
+          echo "completed: $COMPLETED"
+          if [ "$STARTED" = "[]" ] || [ "$COMPLETED" = "[]" ]; then echo "::error::No matching audit rows in 5min"; exit 1; fi
+          echo "::notice::RUNTIME_PASS"
